@@ -1,0 +1,21 @@
+{
+  "name": "thesis-keeper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram bot + Mini App that keeps your trading theses honest — powered by Walrus Memory.",
+  "workspaces": [
+    "server",
+    "webapp"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace webapp",
+    "build": "npm run build --workspace webapp && npm run build --workspace server",
+    "start": "npm run start --workspace server",
+    "test": "npm run test --workspace server",
+    "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace webapp"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

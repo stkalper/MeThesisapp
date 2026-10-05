@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: thesis-keeper
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: PUBLIC_URL
+        sync: false
+      - key: MEMWAL_PRIVATE_KEY
+        sync: false
+      - key: MEMWAL_ACCOUNT_ID
+        sync: false
+      - key: MEMWAL_SERVER_URL
+        value: https://relayer.memory.walrus.xyz
+      - key: LLM_API_KEY
+        sync: false
+      - key: USER_KEY_SECRET
+        generateValue: true
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_MODEL
+        value: qwen/qwen3.8-27b
