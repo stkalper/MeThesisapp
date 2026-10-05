@@ -10,6 +10,8 @@ function env(name: string, fallback = ""): string {
 
 export const config = {
   port: Number(env("PORT", "3000")),
+  /** Interface to bind; set 127.0.0.1 behind a reverse proxy so the port is not exposed directly. */
+  host: env("HOST", "0.0.0.0"),
   /** Public HTTPS URL where the Mini App is served, e.g. https://thesis-keeper.onrender.com */
   publicUrl: env("PUBLIC_URL").replace(/\/$/, ""),
   dataDir: path.resolve(ROOT_DIR, env("DATA_DIR", "data")),

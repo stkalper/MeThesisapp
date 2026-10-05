@@ -20,8 +20,8 @@ if (fs.existsSync(config.webDistDir)) {
   app.get("/", (_req, res) => res.send("Thesis Keeper API is running. Build the webapp (npm run build) to serve the Mini App."));
 }
 
-app.listen(config.port, async () => {
-  console.log(`[server] http://localhost:${config.port}`);
+app.listen(config.port, config.host, async () => {
+  console.log(`[server] http://${config.host}:${config.port}`);
   const health = await memory.health();
   console.log(`[memory] mode=${memory.mode} → ${health.detail}`);
   console.log(`[llm] ${llmEnabled ? `${config.llm.model} via ${config.llm.baseUrl}` : "disabled (set LLM_API_KEY)"}`);
