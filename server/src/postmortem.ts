@@ -52,6 +52,7 @@ export async function draft(p: Position, exitPrice: number): Promise<Omit<PostMo
           'Respond ONLY with JSON: {"story": string (3-4 sentences: why they entered, how they behaved during the trade — ' +
           'cite check-ins and their dates —, and how it ended), "lesson": string (ONE concrete, reusable sentence in first person, ' +
           'e.g. "I sit through -5% shakeouts when my invalidation is intact"), "followedPlan": "yes"|"partly"|"no"|"unclear"}. ' +
+          "If there are [DRIFT] memories, say how the reason for holding changed from the original thesis and when. " +
           "Use only facts from the memories. Same language as the thesis.",
       },
       {

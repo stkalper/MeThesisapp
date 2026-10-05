@@ -1,9 +1,10 @@
-import { complete, llmEnabled, type LlmMessage } from "./llm.js";
+import { complete, detectLanguage, languageInstruction, llmEnabled, type LlmMessage } from "./llm.js";
 import { analyzeFor, recallFor, type RecalledMemory } from "./memory.js";
 import { extractRules } from "./rules.js";
 import { computeMetrics, type LevelEvent } from "./positions.js";
 import { getQuotes } from "./prices.js";
 import { describePosition, usd } from "./journal.js";
+import { detectDrift, type Drift } from "./drift.js";
 import * as store from "./store.js";
 import type { Position } from "./types.js";
 
@@ -75,14 +76,45 @@ const formatMemories = (ms: RecalledMemory[]) =>
 export interface CoachReply {
   reply: string;
   memoriesUsed: RecalledMemory[];
+  drift: Drift[];
 }
 
-export async function chat(userId: string, message: string): Promise<CoachReply> {
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** One short line per recalled memory: "Thesis · Oct 4 — Opened LONG BTC perp @ $78,000…". */
+export function receiptLine(text: string, max = 70): string {
+  const m = text.match(/^\[([A-Z-]+)\]\s+(\d{4})-(\d{2})-(\d{2})[^·]*·\s*/);
+  if (!m) return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  const tag = m[1]!.charAt(0) + m[1]!.slice(1).toLowerCase();
+  const body = text.slice(m[0].length);
+  return `${tag} · ${MONTHS[Number(m[3]) - 1]} ${Number(m[4])} — ${body.length > max ? `${body.slice(0, max - 1)}…` : body}`;
+}
+
+/** Footer for Telegram replies that shows which memories the answer was grounded in. */
+export function memoryReceipt(memories: RecalledMemory[], limit = 3): string {
+  if (!memories.length) return "";
+  return `\n\n🧠 Recalled from your Walrus Memory:\n${memories.slice(0, limit).map((m) => `• ${receiptLine(m.text)}`).join("\n")}`;
+}
+
+export async function chat(userId: string, message: string, opts: { position?: Position } = {}): Promise<CoachReply> {
   const { text: posText, open } = await positionsContext(userId);
   // Recall by what the user said, plus the theses of any positions they mention by ticker.
-  const mentioned = open.filter((p) => new RegExp(`\\b${p.symbol}\\b`, "i").test(message));
+  const mentioned = opts.position
+    ? [opts.position]
+    : open.filter((p) => new RegExp(`\\b${p.symbol}\\b`, "i").test(message));
   const queries = [message, ...mentioned.map((p) => `thesis and invalidation for ${p.symbol} ${p.type}`)];
-  const memoriesUsed = (await recallMany(userId, queries)).slice(0, 10);
+  // Drift check runs alongside recall: is the reason they give now still the reason they entered for?
+  const [recalled, drifts] = await Promise.all([
+    recallMany(userId, queries),
+    Promise.all(
+      mentioned
+        .filter((p) => p.status === "open")
+        .slice(0, 2)
+        .map((p) => detectDrift(p, message).catch(() => null)),
+    ),
+  ]);
+  const memoriesUsed = recalled.slice(0, 10);
+  const drift = drifts.filter((d): d is Drift => d !== null);
 
   let reply: string;
   if (llmEnabled) {
@@ -90,14 +122,24 @@ export async function chat(userId: string, message: string): Promise<CoachReply>
       .chatHistory(userId)
       .slice(-8)
       .map((m) => ({ role: m.role, content: m.content }));
+    const checkInContext = opts.position
+      ? `\n\nTHIS MESSAGE IS A CHECK-IN on: ${describePosition(opts.position)}, opened ${opts.position.openedAt.slice(0, 10)}.`
+      : "";
+    const driftContext = drift.length
+      ? "\n\nTHESIS DRIFT DETECTED — raise this first, quoting the thesis date, and ask whether the original reason still holds:\n" +
+        drift.map((d) => `- ${d.symbol}: entered on ${d.thesisDate} because "${d.original}"; now the reason is "${d.now}". ${d.note}`).join("\n")
+      : "";
     reply = await complete([
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "system",
-        content: `Today is ${new Date().toISOString().slice(0, 10)}.\n\nMEMORIES:\n${formatMemories(memoriesUsed)}\n\nPOSITIONS:\n${posText}`,
+        content: `Today is ${new Date().toISOString().slice(0, 10)}.\n\nMEMORIES:\n${formatMemories(memoriesUsed)}\n\nPOSITIONS:\n${posText}${checkInContext}${driftContext}`,
       },
       ...history,
-      { role: "user", content: message },
+      // Placed last so earlier English turns or English memories don't pull the reply into English.
+      { role: "system", content: languageInstruction(message) },
+      // A short note inside the user turn itself is what reliably keeps open models in the user's language.
+      { role: "user", content: detectLanguage(message) ? `${message}\n\n(Answer in ${detectLanguage(message)}.)` : message },
     ]);
   } else {
     reply = memoriesUsed.length
@@ -116,7 +158,7 @@ export async function chat(userId: string, message: string): Promise<CoachReply>
     void extractRules(userId, message, "chat");
   }
 
-  return { reply, memoriesUsed };
+  return { reply, memoriesUsed, drift };
 }
 
 async function learnFromChat(userId: string, message: string) {

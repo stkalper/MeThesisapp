@@ -3,7 +3,7 @@ import { config, memwalEnabled, walrusNetwork, walruscanBlobUrl } from "./config
 import * as coach from "./coach.js";
 import * as journal from "./journal.js";
 import { llmEnabled } from "./llm.js";
-import { memory, memoryFor, recallFor } from "./memory.js";
+import { memory, memoryFor, recallFor, type RecalledMemory } from "./memory.js";
 import { publicView, publishCommitment, walruscanUrl as commitmentWalruscan } from "./commitment.js";
 import * as personal from "./personalMemory.js";
 import * as postmortem from "./postmortem.js";
@@ -65,6 +65,9 @@ function enrich(p: Position, quotes: Record<string, Quote>) {
     commitmentUrl: p.commitment?.blobId ? commitmentWalruscan(p.commitment.blobId) : undefined,
   };
 }
+
+/** Adds a Walruscan link to each recalled memory so the UI can show where an answer came from. */
+const withProof = (ms: RecalledMemory[]) => ms.map((m) => ({ ...m, proofUrl: m.blobId ? walruscanBlobUrl(m.blobId) : undefined }));
 
 function ownedPosition(req: Request): Position {
   const p = store.getPosition(String(req.params.id));
@@ -232,8 +235,9 @@ export function createApi() {
       const mark = (await getQuotes([p.symbol]))[p.symbol]?.price ?? p.entryPrice;
       const entry = await journal.checkIn(p, feeling, mark);
       // The coach immediately answers the check-in with the user's own past context.
-      const { reply } = await coach.chat(uid(req), `Check-in on my ${p.symbol} ${p.type} position: ${feeling}`);
-      res.json({ entry, reply });
+      // The position goes in as context, not as an English prefix, so the reply stays in the user's language.
+      const { reply, memoriesUsed, drift } = await coach.chat(uid(req), feeling, { position: p });
+      res.json({ entry, reply, memoriesUsed: withProof(memoriesUsed), drift });
     }),
   );
 
@@ -343,7 +347,7 @@ export function createApi() {
       const q = String(req.query.q ?? "").trim();
       if (!q) throw new journal.ValidationError("q is required");
       const results = await recallFor(uid(req), q, 10);
-      res.json(results.map((r) => ({ ...r, proofUrl: r.blobId ? walruscanBlobUrl(r.blobId) : undefined })));
+      res.json(withProof(results));
     }),
   );
 
@@ -373,7 +377,8 @@ export function createApi() {
     h(async (req, res) => {
       const message = String(req.body?.message ?? "").trim().slice(0, 2000);
       if (!message) throw new journal.ValidationError("message is required");
-      res.json(await coach.chat(uid(req), message));
+      const out = await coach.chat(uid(req), message);
+      res.json({ ...out, memoriesUsed: withProof(out.memoriesUsed) });
     }),
   );
 

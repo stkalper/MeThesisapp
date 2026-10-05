@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { JournalEntry } from "./api";
+import type { Drift, JournalEntry, Recalled } from "./api";
 import { pct, usd } from "./format";
 import { haptic, openLink } from "./telegram";
 
@@ -250,6 +250,63 @@ export function MemoryBadge({ entry }: { entry: Pick<JournalEntry, "memory"> & {
 
 export function Spinner() {
   return <span className="spin" />;
+}
+
+// ---------- memory receipts ----------
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Splits "[THESIS] 2026-10-04 14:36 UTC · Opened LONG…" into a kind, a short date and the sentence. */
+function parseMemory(text: string): { kind?: string; when?: string; body: string } {
+  const m = text.match(/^\[([A-Z-]+)\]\s+(\d{4})-(\d{2})-(\d{2})[^·]*·\s*/);
+  if (!m) return { body: text };
+  return { kind: m[1]!.toLowerCase(), when: `${MONTHS[Number(m[3]) - 1]} ${Number(m[4])}`, body: text.slice(m[0].length) };
+}
+
+/** "Recalled 3 memories from Walrus" — tap to see exactly which memories an answer was grounded in. */
+export function RecallReceipt({ memories, limit = 5 }: { memories: Recalled[]; limit?: number }) {
+  const [open, setOpen] = useState(false);
+  if (!memories.length) return null;
+  return (
+    <div className="recalled">
+      <button className="chip light" onClick={() => { haptic.tap(); setOpen((o) => !o); }}>
+        <Icon.brain />Recalled {memories.length} {memories.length === 1 ? "memory" : "memories"} from Walrus {open ? "▴" : "▾"}
+      </button>
+      {open && (
+        <div className="receipt fade-in">
+          {memories.slice(0, limit).map((m, i) => {
+            const { kind, when, body } = parseMemory(m.text);
+            return (
+              <div className="receipt-item" key={i}>
+                <div className="mem-head">
+                  <span className="mem-kind">{kind ?? "fact"}</span>
+                  <span>
+                    {when}
+                    {m.proofUrl ? <button className="link-btn" onClick={() => openLink(m.proofUrl!)}> blob ↗</button> : null}
+                  </span>
+                </div>
+                <p>{body.length > 180 ? `${body.slice(0, 179)}…` : body}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The reason for holding no longer matches the sealed thesis. */
+export function DriftCard({ drift }: { drift: Drift }) {
+  return (
+    <div className="banner drift fade-in">
+      <Icon.pulse />
+      <div>
+        <b>Thesis drift on {drift.symbol} · recorded on Walrus</b>
+        <span className="drift-row"><i>Entered {drift.thesisDate}:</i> {drift.original}</span>
+        <span className="drift-row"><i>Now:</i> {drift.now}</span>
+      </div>
+    </div>
+  );
 }
 
 // ---------- charts ----------

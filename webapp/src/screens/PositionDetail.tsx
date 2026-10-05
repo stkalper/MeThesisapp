@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, type Position } from "../api";
-import { Icon, LiveValue, MemoryBadge, PnlChip, Ring, Spinner, toast, TopBar, useLive, useLoad } from "../components";
+import { api, type Drift, type Position, type Recalled } from "../api";
+import { DriftCard, Icon, LiveValue, MemoryBadge, PnlChip, RecallReceipt, Ring, Spinner, toast, TopBar, useLive, useLoad } from "../components";
 import { ago, date, parseNum, pct, price, qty, shortHash, simulate, time, usd } from "../format";
 import { haptic, openLink, shareText } from "../telegram";
 
@@ -207,7 +207,7 @@ export function PositionDetail({ id }: { id: string }) {
   const { data, loading, error, reload } = useLoad(() => api.position(id), [id]);
   const [feeling, setFeeling] = useState("");
   const [checking, setChecking] = useState(false);
-  const [coachReply, setCoachReply] = useState<string>();
+  const [coachReply, setCoachReply] = useState<{ reply: string; memoriesUsed: Recalled[]; drift: Drift[] }>();
   const [closing, setClosing] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmReveal, setConfirmReveal] = useState(false);
@@ -274,7 +274,7 @@ export function PositionDetail({ id }: { id: string }) {
     try {
       const res = await api.checkIn(p!.id, feeling);
       setFeeling("");
-      setCoachReply(res.reply);
+      setCoachReply(res);
       haptic.success();
       void reload();
     } catch (err) {
@@ -464,7 +464,13 @@ export function PositionDetail({ id }: { id: string }) {
                 <button className="btn ghost" onClick={() => setClosing(true)}>Close position</button>
               )}
             </div>
-            {coachReply && <div className="bubble assistant fade-in" style={{ maxWidth: "100%", color: "var(--ink)" }}>{coachReply}</div>}
+            {coachReply && (
+              <div className="chat" style={{ padding: 0, marginTop: 12 }}>
+                {coachReply.drift.map((d) => <DriftCard key={d.positionId} drift={d} />)}
+                <RecallReceipt memories={coachReply.memoriesUsed} />
+                <div className="bubble assistant fade-in" style={{ maxWidth: "100%", color: "var(--ink)" }}>{coachReply.reply}</div>
+              </div>
+            )}
           </div>
         </section>
       )}

@@ -72,7 +72,7 @@ export interface Position {
 export interface JournalEntry {
   id: string;
   positionId?: string;
-  kind: "thesis" | "checkin" | "close" | "note" | "chat" | "alert" | "fill" | "cancel" | "rule";
+  kind: "thesis" | "checkin" | "close" | "note" | "chat" | "alert" | "fill" | "cancel" | "rule" | "postmortem" | "drift";
   text: string;
   createdAt: string;
   memory: { status: "pending" | "stored" | "failed" | "local"; blobId?: string; error?: string; space?: "app" | "user" };
@@ -99,6 +99,16 @@ export interface Recalled {
   blobId?: string;
   distance: number;
   proofUrl?: string;
+}
+
+export interface Drift {
+  positionId: string;
+  symbol: string;
+  original: string;
+  now: string;
+  note: string;
+  thesisDate: string;
+  journalId?: string;
 }
 
 export interface Insights {
@@ -236,7 +246,7 @@ export const api = {
   portfolio: () => request<Portfolio>("/portfolio"),
   position: (id: string) => request<{ position: Position; journal: JournalEntry[] }>(`/positions/${id}`),
   createPosition: (body: unknown) => post<{ position: Position }>("/positions", body),
-  checkIn: (id: string, feeling: string) => post<{ entry: JournalEntry; reply: string }>(`/positions/${id}/checkin`, { feeling }),
+  checkIn: (id: string, feeling: string) => post<{ entry: JournalEntry; reply: string; memoriesUsed: Recalled[]; drift: Drift[] }>(`/positions/${id}/checkin`, { feeling }),
   cancel: (id: string, reason = "") => post<{ position: Position }>(`/positions/${id}/cancel`, { reason }),
   close: (id: string, body: { exitPrice?: number; reason: string; outcome: string; lesson?: string }) =>
     post<{ position: Position }>(`/positions/${id}/close`, body),
@@ -245,7 +255,7 @@ export const api = {
   note: (text: string) => post<JournalEntry>("/journal", { text }),
   recall: (q: string) => request<Recalled[]>(`/recall?q=${encodeURIComponent(q)}`),
   chatHistory: () => request<Array<{ role: "user" | "assistant"; content: string; at: string }>>("/chat"),
-  chat: (message: string) => post<{ reply: string; memoriesUsed: Recalled[] }>("/chat", { message }),
+  chat: (message: string) => post<{ reply: string; memoriesUsed: Recalled[]; drift: Drift[] }>("/chat", { message }),
   insights: (force = false) => request<Insights>(`/insights${force ? "?force=1" : ""}`),
   proof: () => request<ProofRow[]>("/proof"),
   retryCommit: (id: string) => post<{ position: Position }>(`/positions/${id}/commit`, {}),

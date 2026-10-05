@@ -149,8 +149,12 @@ export function createBot(): Bot | null {
     if (text.startsWith("/")) return;
     await ctx.replyWithChatAction("typing");
     try {
-      const { reply } = await coach.chat(String(ctx.from.id), text);
-      await ctx.reply(reply || "…");
+      const { reply, memoriesUsed, drift } = await coach.chat(String(ctx.from.id), text);
+      // Show what the answer was grounded in, so it's visible that the bot remembers rather than improvises.
+      const driftNote = drift.length
+        ? `\n\n⚠️ Thesis drift recorded on Walrus: ${drift.map((d) => `${d.symbol} — entered for "${d.original}", now "${d.now}"`).join("; ")}`
+        : "";
+      await ctx.reply(`${reply || "…"}${driftNote}${coach.memoryReceipt(memoriesUsed)}`.slice(0, 4096));
     } catch (err) {
       console.error("[bot] chat failed:", err);
       await ctx.reply("Something went wrong on my side — try again in a moment.");

@@ -100,7 +100,7 @@ export interface Position {
   revealedAt?: string;
 }
 
-export type JournalKind = "thesis" | "checkin" | "close" | "note" | "chat" | "alert" | "fill" | "cancel" | "rule" | "postmortem";
+export type JournalKind = "thesis" | "checkin" | "close" | "note" | "chat" | "alert" | "fill" | "cancel" | "rule" | "postmortem" | "drift";
 
 export interface JournalEntry {
   id: string;

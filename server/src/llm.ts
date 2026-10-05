@@ -36,3 +36,19 @@ export async function complete(messages: LlmMessage[], opts: { temperature?: num
   // Reasoning models (Qwen3, DeepSeek-R1) may inline their chain of thought.
   return content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
+
+/** Detects the language of a message from its script; null for Latin text (the model handles that on its own). */
+export function detectLanguage(message: string): string | null {
+  if (/[іїєґІЇЄҐ]/.test(message)) return "Ukrainian";
+  if (/[ыэъёЫЭЪЁ]/.test(message)) return "Russian";
+  if (/[а-яА-Я]/.test(message)) return "the Cyrillic language the user wrote in";
+  return null;
+}
+
+/** Names the reply language explicitly — open models follow "reply in Ukrainian" far better than "same language". */
+export function languageInstruction(message: string): string {
+  const lang = detectLanguage(message);
+  return lang
+    ? `The user's message is in ${lang}. Write your entire reply in ${lang}, even though memories and earlier messages may be in English.`
+    : "Write your reply in the same language as the user message that follows, even if earlier messages or memories are in another language.";
+}

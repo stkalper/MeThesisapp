@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type Recalled } from "../api";
-import { Icon, toast, TopBar } from "../components";
+import { api, type Drift, type Recalled } from "../api";
+import { DriftCard, Icon, RecallReceipt, toast, TopBar } from "../components";
 import { haptic } from "../telegram";
 
 interface Msg {
   role: "user" | "assistant";
   content: string;
   recalled?: Recalled[];
+  drift?: Drift[];
 }
 
 const SUGGESTIONS = [
@@ -36,7 +37,7 @@ export function Coach() {
     try {
       const res = await api.chat(m);
       haptic.tap();
-      setMessages((cur) => [...cur, { role: "assistant", content: res.reply, recalled: res.memoriesUsed }]);
+      setMessages((cur) => [...cur, { role: "assistant", content: res.reply, recalled: res.memoriesUsed, drift: res.drift }]);
     } catch (err) {
       toast((err as Error).message, true);
     } finally {
@@ -58,11 +59,8 @@ export function Coach() {
         )}
         {messages.map((m, i) => (
           <div key={i} style={{ display: "contents" }}>
-            {m.recalled && m.recalled.length > 0 && (
-              <div className="recalled">
-                <span className="chip light"><Icon.brain />Recalled {m.recalled.length} {m.recalled.length === 1 ? "memory" : "memories"} from Walrus</span>
-              </div>
-            )}
+            {m.drift?.map((d) => <DriftCard key={d.positionId} drift={d} />)}
+            {m.recalled && <RecallReceipt memories={m.recalled} />}
             <div className={`bubble ${m.role}`}>{m.content}</div>
           </div>
         ))}
