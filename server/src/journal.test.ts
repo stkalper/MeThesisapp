@@ -19,6 +19,19 @@ test("accepts comma decimals and spaces from mobile keyboards", () => {
   assert.equal(input.thesis.invalidationPrice, 0.85);
 });
 
+test("rejects levels on the wrong side of the entry", () => {
+  const base = { type: "perp", symbol: "SOL", entryPrice: "116", size: "200", leverage: "5" };
+  assert.throws(
+    () => validatePositionInput({ ...base, side: "long", thesis: { ...thesis, targetPrice: "250", invalidationPrice: "120" } }),
+    (err: unknown) => err instanceof ValidationError && /invalidation must be below/.test(err.message),
+  );
+  assert.throws(
+    () => validatePositionInput({ ...base, side: "short", thesis: { ...thesis, targetPrice: "130" } }),
+    (err: unknown) => err instanceof ValidationError && /target must be below/.test(err.message),
+  );
+  assert.equal(validatePositionInput({ ...base, side: "short", thesis: { ...thesis, targetPrice: "90", invalidationPrice: "125" } }).side, "short");
+});
+
 test("rejects missing size and short thesis", () => {
   assert.throws(
     () => validatePositionInput({ type: "perp", symbol: "BTC", entryPrice: "80000", size: "", thesis: { text: "pump" } }),

@@ -155,6 +155,15 @@ export function validatePositionInput(raw: unknown): NewPositionInput {
     const v = input.thesis[k];
     if (v !== undefined && !(v > 0)) errors.push(`${k} must be > 0`);
   }
+  // A long that is "wrong" above its entry would be invalidated the moment it opens (and vice versa for shorts).
+  const { targetPrice, invalidationPrice } = input.thesis;
+  const long = input.side === "long";
+  if (input.entryPrice > 0 && targetPrice && (long ? targetPrice <= input.entryPrice : targetPrice >= input.entryPrice)) {
+    errors.push(`for a ${input.side}, the target must be ${long ? "above" : "below"} the entry price`);
+  }
+  if (input.entryPrice > 0 && invalidationPrice && (long ? invalidationPrice >= input.entryPrice : invalidationPrice <= input.entryPrice)) {
+    errors.push(`for a ${input.side}, the invalidation must be ${long ? "below" : "above"} the entry price`);
+  }
   if (errors.length) throw new ValidationError(errors.join("; "));
   return input;
 }

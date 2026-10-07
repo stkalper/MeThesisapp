@@ -87,6 +87,11 @@ export function NewPosition() {
   if (thesis.trim().length < 10) problems.thesis = "Write your thesis (at least 10 characters)";
   if (target.trim() && !(targetN > 0)) problems.target = "Target must be a number";
   if (invalidation.trim() && !(invalidationN > 0)) problems.invalidation = "Invalidation must be a number";
+  const long = effectiveSide === "long";
+  if (entryN > 0 && targetN > 0 && (long ? targetN <= entryN : targetN >= entryN))
+    problems.target = `For a ${effectiveSide}, the target must be ${long ? "above" : "below"} the entry price`;
+  if (entryN > 0 && invalidationN > 0 && (long ? invalidationN >= entryN : invalidationN <= entryN))
+    problems.invalidation = `For a ${effectiveSide}, the invalidation must be ${long ? "below" : "above"} the entry price`;
   const [attempted, setAttempted] = useState(false);
   const [brokenRules, setBrokenRules] = useState(0);
 

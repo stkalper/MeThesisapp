@@ -103,14 +103,20 @@ export async function chat(userId: string, message: string, opts: { position?: P
     ? [opts.position]
     : open.filter((p) => new RegExp(`\\b${p.symbol}\\b`, "i").test(message));
   const queries = [message, ...mentioned.map((p) => `thesis and invalidation for ${p.symbol} ${p.type}`)];
+  const started = Date.now();
+  const ms: Record<string, number> = {};
+  const timed = <T,>(label: string, p: Promise<T>) => p.finally(() => void (ms[label] = Date.now() - started));
   // Drift check runs alongside recall: is the reason they give now still the reason they entered for?
   const [recalled, drifts] = await Promise.all([
-    recallMany(userId, queries),
-    Promise.all(
-      mentioned
-        .filter((p) => p.status === "open")
-        .slice(0, 2)
-        .map((p) => detectDrift(p, message).catch(() => null)),
+    timed("recall", recallMany(userId, queries)),
+    timed(
+      "drift",
+      Promise.all(
+        mentioned
+          .filter((p) => p.status === "open")
+          .slice(0, 2)
+          .map((p) => detectDrift(p, message).catch(() => null)),
+      ),
     ),
   ]);
   const memoriesUsed = recalled.slice(0, 10);
@@ -147,6 +153,10 @@ export async function chat(userId: string, message: string, opts: { position?: P
       : "I don't have anything on record about that yet. Add a position with a thesis in the app, and I'll hold you to it.";
   }
 
+  console.log(
+    `[coach] reply in ${((Date.now() - started) / 1000).toFixed(1)}s ` +
+      `(recall ${((ms.recall ?? 0) / 1000).toFixed(1)}s, drift ${((ms.drift ?? 0) / 1000).toFixed(1)}s, ${memoriesUsed.length} memories)`,
+  );
   const at = new Date().toISOString();
   store.pushChat(userId, { role: "user", content: message, at });
   store.pushChat(userId, { role: "assistant", content: reply, at });
