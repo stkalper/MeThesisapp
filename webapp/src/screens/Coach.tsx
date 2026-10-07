@@ -26,7 +26,10 @@ export function Coach() {
   useEffect(() => {
     api.chatHistory().then((h) => setMessages(h.map((m) => ({ role: m.role, content: m.content })))).catch(() => {});
   }, []);
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth" }), [messages, busy]);
+  // Braces matter: newer Chromium returns a Promise from scrollIntoView, and React would call it as a cleanup.
+  useEffect(() => {
+    end.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, busy]);
 
   async function send(message = text) {
     const m = message.trim();
