@@ -268,7 +268,7 @@ export async function closePosition(
   });
   const text =
     `[OUTCOME] ${stamp()} · Closed ${describePosition(position)} at ${usd(input.exitPrice)} after ${held} day(s). ` +
-    `Result: ${m.pnl >= 0 ? "profit" : "loss"} ${usd(m.pnl)} (${m.pnlPct.toFixed(1)}%). ` +
+    `Result: ${m.pnl >= 0 ? "profit" : "loss"} ${usd(Math.abs(m.pnl))} (${m.pnlPct.toFixed(1)}%). ` +
     `Original thesis: "${position.thesis.text.slice(0, 300)}". ` +
     `Thesis verdict: ${input.outcome ?? "unclear"}. Reason for exit: ${input.reason.trim().slice(0, 500)}.` +
     (input.lesson ? ` Lesson learned: ${input.lesson.trim().slice(0, 500)}` : "");

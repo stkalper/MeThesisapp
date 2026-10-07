@@ -14,6 +14,8 @@ app.disable("x-powered-by");
 app.use("/api", createApi());
 
 if (fs.existsSync(config.webDistDir)) {
+  // Vite fingerprints everything in assets/, so those files can be cached for good; index.html is always revalidated.
+  app.use("/assets", express.static(path.join(config.webDistDir, "assets"), { immutable: true, maxAge: "1y" }));
   app.use(express.static(config.webDistDir, { index: false, maxAge: "1h" }));
   app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(config.webDistDir, "index.html")));
 } else {
