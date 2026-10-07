@@ -88,7 +88,22 @@ export async function retryUnstored(): Promise<{ retried: number; stored: number
     }
     if (entry.memory.status === "stored") stored++;
   }
+  syncProofs();
   return { retried: stuck.length, stored };
+}
+
+/**
+ * A position's proof mirrors its [THESIS] memory. When that memory reached Walrus only on a retry, the
+ * position still says "pending"/"failed", so copy the stored memory's blob over.
+ */
+function syncProofs() {
+  for (const p of store.unsealedPositions()) {
+    const thesis = store.journalFor(p.userId, p.id).find((j) => j.kind === "thesis" && j.memory.status === "stored");
+    if (!thesis) continue;
+    store.updatePosition(p.id, {
+      proof: { hash: p.proof.hash, status: "stored", blobId: thesis.memory.blobId, storedAt: new Date().toISOString() },
+    });
+  }
 }
 
 // ---- positions ----

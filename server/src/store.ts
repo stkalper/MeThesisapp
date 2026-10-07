@@ -111,6 +111,10 @@ export const positionsFor = (userId: string): Position[] =>
     .filter((p) => p.userId === userId)
     .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
 
+/** Positions whose thesis is not shown as sealed on Walrus yet. */
+export const unsealedPositions = (): Position[] =>
+  db.positions.filter((p) => p.proof.status === "pending" || p.proof.status === "failed");
+
 export const openPositions = (): Position[] => db.positions.filter((p) => p.status === "open");
 export const pendingOrders = (): Position[] => db.positions.filter((p) => p.status === "pending");
 
