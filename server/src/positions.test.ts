@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeMetrics, crossedLevels, limitReached, liquidationPrice } from "./positions.js";
+import { computeMetrics, crossedLevels, limitReached, liquidationExit, liquidationPrice } from "./positions.js";
 import { canonicalSize } from "./journal.js";
 
 test("limit orders fill when price crosses from the starting side", () => {
@@ -79,4 +79,15 @@ test("crossed levels respect side", () => {
   assert.deepEqual(crossedLevels(base, 94), ["invalidation"]); // 6 / 9.5 of the way to liq
   assert.deepEqual(crossedLevels(base, 93), ["invalidation", "liq-warning"]);
   assert.deepEqual(crossedLevels({ ...base, side: "short", thesis: { ...base.thesis, targetPrice: 80, invalidationPrice: 105 } }, 106), ["invalidation"]);
+});
+
+test("a liquidated perp closes at its liquidation price, even after a bounce", () => {
+  const perp = { type: "perp" as const, side: "long" as const, entryPrice: 100, leverage: 10, alertsSent: [] as string[] };
+  const liq = liquidationPrice(100, 10, "long");
+  assert.equal(liquidationExit(perp, liq + 1), null);
+  assert.equal(liquidationExit(perp, liq - 1), liq);
+  assert.equal(liquidationExit({ ...perp, alertsSent: ["liquidated"] }, 105), liq);
+  assert.equal(computeMetrics({ ...perp, size: 50 }, liquidationExit(perp, liq - 1)!).pnl, -50);
+  assert.equal(liquidationExit({ ...perp, side: "short" }, liquidationPrice(100, 10, "short") + 1), liquidationPrice(100, 10, "short"));
+  assert.equal(liquidationExit({ ...perp, type: "spot" }, 1), null);
 });

@@ -189,7 +189,7 @@ const EVENT_COPY: Record<LevelEvent, string> = {
   target: "hit your TARGET",
   invalidation: "crossed your INVALIDATION level",
   "liq-warning": "is getting close to LIQUIDATION",
-  liquidated: "would have been LIQUIDATED",
+  liquidated: "was LIQUIDATED",
 };
 
 export async function alertMessage(p: Position, event: LevelEvent, mark: number): Promise<string> {

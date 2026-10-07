@@ -87,6 +87,21 @@ export function limitReached(p: Pick<Position, "entryPrice" | "refPrice">, markP
   return ref >= p.entryPrice ? markPrice <= p.entryPrice : markPrice >= p.entryPrice;
 }
 
+/**
+ * A perp whose mark price reached its liquidation level is closed there, like on an exchange:
+ * returns the liquidation price to close at, or null if the position survives.
+ * `alreadyLiquidated` keeps it closed even if the price has bounced back since the alert.
+ */
+export function liquidationExit(
+  p: Pick<Position, "type" | "side" | "entryPrice" | "leverage" | "alertsSent">,
+  markPrice: number,
+): number | null {
+  if (p.type !== "perp") return null;
+  const liq = liquidationPrice(p.entryPrice, Math.max(1, p.leverage), p.side);
+  const hit = p.side === "long" ? markPrice <= liq : markPrice >= liq;
+  return hit || p.alertsSent.includes("liquidated") ? liq : null;
+}
+
 export type LevelEvent ="target" | "invalidation" | "liq-warning" | "liquidated";
 
 /** Which thesis levels has the mark price crossed? */

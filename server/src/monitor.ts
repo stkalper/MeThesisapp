@@ -1,8 +1,9 @@
 import type { Bot } from "grammy";
 import { config, walruscanBlobUrl } from "./config.js";
 import { alertMessage } from "./coach.js";
-import { describePosition, fillOrder, remember, usd } from "./journal.js";
-import { crossedLevels, limitReached } from "./positions.js";
+import { describePosition, fillOrder, liquidatePosition, remember, usd } from "./journal.js";
+import { crossedLevels, limitReached, liquidationExit } from "./positions.js";
+import { writePostMortem } from "./postmortem.js";
 import { getQuotes } from "./prices.js";
 import * as store from "./store.js";
 import type { Position } from "./types.js";
@@ -11,7 +12,9 @@ import type { Position } from "./types.js";
  * Every tick:
  *  1. fills pending limit orders whose price was reached, and tells the user — with their thesis;
  *  2. watches open positions and, when a thesis level is crossed, sends a reminder
- *     built from the user's own Walrus Memory. Each event fires once per position.
+ *     built from the user's own Walrus Memory. Each event fires once per position;
+ *  3. closes perps that reached their liquidation price, as an exchange would, and writes the
+ *     outcome and post-mortem back to Walrus Memory.
  */
 export function startMonitor(bot: Bot) {
   const chatFor = (p: Position) => store.getUser(p.userId)?.chatId ?? Number(p.userId);
@@ -54,6 +57,20 @@ export function startMonitor(bot: Bot) {
         } catch (err) {
           console.error(`[monitor] alert ${event} for ${p.id} failed:`, (err as Error).message);
         }
+      }
+
+      const current = store.getPosition(p.id);
+      const exit = current?.status === "open" ? liquidationExit(current, mark) : null;
+      if (current && exit) {
+        await liquidatePosition(current, exit);
+        void writePostMortem(current.id);
+        await bot.api
+          .sendMessage(
+            chatFor(current),
+            `💥 ${describePosition(current)} was liquidated at ${usd(exit)} and closed: the whole margin (${usd(current.size)}) is lost.\n\n` +
+              `The outcome is saved to your Walrus Memory, and a post-mortem of the trade will appear on the position in a minute.`,
+          )
+          .catch((err) => console.error(`[monitor] liquidation notice for ${p.id} failed:`, (err as Error).message));
       }
     }
   };

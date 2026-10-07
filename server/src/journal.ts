@@ -275,6 +275,17 @@ export async function closePosition(
   return rememberLater(position.userId, "close", text, position.id).entry;
 }
 
+/** The exchange would have closed it: exit at the liquidation price, losing the whole margin. */
+export async function liquidatePosition(position: Position, liquidationPrice: number) {
+  return closePosition(position, {
+    exitPrice: liquidationPrice,
+    reason:
+      `Liquidated automatically at ${usd(liquidationPrice)} (${position.leverage}x): ` +
+      `the price reached the liquidation level before the position was closed, so the whole margin was lost`,
+    outcome: "unclear",
+  });
+}
+
 // ---- limit orders ----
 
 /** A pending limit order's price was reached: it becomes an open position at the limit price. */
