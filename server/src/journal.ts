@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { prepareCommitment, publishCommitment } from "./commitment.js";
-import { rememberFor } from "./memory.js";
+import { memoryFor, recallFor, rememberFor } from "./memory.js";
 import { computeMetrics } from "./positions.js";
 import { normalizeSymbol } from "./prices.js";
 import * as store from "./store.js";
@@ -68,6 +68,27 @@ async function persistToWalrus(entry: JournalEntry): Promise<JournalEntry> {
   }
   store.updateJournal(entry.id, { memory: entry.memory });
   return entry;
+}
+
+/**
+ * Run on startup: writes cut off by a restart stay "pending" and relayer timeouts end "failed", so they are
+ * written again. A timed-out job can still have completed, so an exact match already in Walrus Memory is
+ * adopted instead of stored twice. Sequential, to keep the relayer's queue short.
+ */
+export async function retryUnstored(): Promise<{ retried: number; stored: number }> {
+  const stuck = store.unstoredJournal();
+  let stored = 0;
+  for (const entry of stuck) {
+    const existing = (await recallFor(entry.userId, entry.text, 3).catch(() => [])).find((m) => m.text === entry.text);
+    if (existing) {
+      entry.memory = { status: "stored", blobId: existing.blobId, space: memoryFor(entry.userId).space };
+      store.updateJournal(entry.id, { memory: entry.memory });
+    } else {
+      await persistToWalrus(entry);
+    }
+    if (entry.memory.status === "stored") stored++;
+  }
+  return { retried: stuck.length, stored };
 }
 
 // ---- positions ----

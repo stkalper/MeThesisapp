@@ -4,6 +4,7 @@ import express from "express";
 import { createApi } from "./api.js";
 import { createBot, startBot } from "./bot.js";
 import { config } from "./config.js";
+import { retryUnstored } from "./journal.js";
 import { llmEnabled } from "./llm.js";
 import { memory } from "./memory.js";
 import { startMonitor } from "./monitor.js";
@@ -27,6 +28,11 @@ app.listen(config.port, config.host, async () => {
   const health = await memory.health();
   console.log(`[memory] mode=${memory.mode} → ${health.detail}`);
   console.log(`[llm] ${llmEnabled ? `${config.llm.model} via ${config.llm.baseUrl}` : "disabled (set LLM_API_KEY)"}`);
+  if (memory.mode === "walrus" && health.ok) {
+    void retryUnstored()
+      .then(({ retried, stored }) => retried && console.log(`[memory] retried ${retried} unstored memories, ${stored} now on Walrus`))
+      .catch((err) => console.error("[memory] retry failed:", (err as Error).message));
+  }
 
   const bot = createBot();
   if (bot) {
