@@ -91,7 +91,8 @@ class WalrusMemory implements MemoryBackend {
   }
 
   async remember(namespace: string, text: string): Promise<StoredMemory> {
-    const result = await this.client.rememberAndWait(text, namespace, { timeoutMs: 60_000 });
+    // Writes run in the background, so wait out a busy relayer queue rather than give up after a minute.
+    const result = await this.client.rememberAndWait(text, namespace, { timeoutMs: 180_000 });
     return { blobId: result.blob_id, memoryId: result.id, mode: "walrus" };
   }
 

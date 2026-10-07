@@ -71,8 +71,8 @@ async function persistToWalrus(entry: JournalEntry): Promise<JournalEntry> {
 }
 
 /**
- * Run on startup: writes cut off by a restart stay "pending" and relayer timeouts end "failed", so they are
- * written again. A timed-out job can still have completed, so an exact match already in Walrus Memory is
+ * Run on startup and every few minutes: writes cut off by a restart stay "pending" and relayer timeouts end
+ * "failed", so they are written again. A timed-out job can still have completed, so an exact match already in Walrus Memory is
  * adopted instead of stored twice. Sequential, to keep the relayer's queue short.
  */
 export async function retryUnstored(): Promise<{ retried: number; stored: number }> {

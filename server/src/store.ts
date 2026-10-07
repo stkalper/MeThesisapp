@@ -129,9 +129,16 @@ export function updateJournal(id: string, patch: Partial<JournalEntry>): void {
   persist();
 }
 
-/** Memories that never reached Walrus: interrupted by a restart ("pending") or rejected by the relayer ("failed"). */
-export const unstoredJournal = (): JournalEntry[] =>
-  db.journal.filter((j) => j.memory.status === "pending" || j.memory.status === "failed");
+/**
+ * Memories that never reached Walrus: rejected or timed out ("failed"), or cut off by a restart ("pending" for
+ * longer than any write can take; younger pending ones are still in flight).
+ */
+export const unstoredJournal = (pendingOlderThanMs = 5 * 60_000): JournalEntry[] =>
+  db.journal.filter(
+    (j) =>
+      j.memory.status === "failed" ||
+      (j.memory.status === "pending" && Date.now() - Date.parse(j.createdAt) > pendingOlderThanMs),
+  );
 
 export const journalFor = (userId: string, positionId?: string): JournalEntry[] =>
   db.journal

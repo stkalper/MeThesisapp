@@ -28,10 +28,18 @@ app.listen(config.port, config.host, async () => {
   const health = await memory.health();
   console.log(`[memory] mode=${memory.mode} → ${health.detail}`);
   console.log(`[llm] ${llmEnabled ? `${config.llm.model} via ${config.llm.baseUrl}` : "disabled (set LLM_API_KEY)"}`);
-  if (memory.mode === "walrus" && health.ok) {
-    void retryUnstored()
-      .then(({ retried, stored }) => retried && console.log(`[memory] retried ${retried} unstored memories, ${stored} now on Walrus`))
-      .catch((err) => console.error("[memory] retry failed:", (err as Error).message));
+  if (memory.mode === "walrus") {
+    let retrying = false;
+    const retry = () => {
+      if (retrying) return;
+      retrying = true;
+      retryUnstored()
+        .then(({ retried, stored }) => retried && console.log(`[memory] retried ${retried} unstored memories, ${stored} now on Walrus`))
+        .catch((err) => console.error("[memory] retry failed:", (err as Error).message))
+        .finally(() => (retrying = false));
+    };
+    if (health.ok) retry();
+    setInterval(retry, 10 * 60_000);
   }
 
   const bot = createBot();
