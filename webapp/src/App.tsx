@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Me } from "./api";
-import { BottomNav, ToastHost, useRoute } from "./components";
+import { BottomNav, ErrorBoundary, goBack, ToastHost, useRoute } from "./components";
 import { Coach } from "./screens/Coach";
 import { Home } from "./screens/Home";
 import { Memory } from "./screens/Memory";
@@ -24,7 +24,7 @@ export function App() {
   useEffect(() => {
     const back = tg?.BackButton;
     if (!back) return;
-    const onBack = () => history.back();
+    const onBack = () => goBack();
     if (route === "/") back.hide();
     else back.show();
     back.onClick(onBack);
@@ -67,7 +67,9 @@ export function App() {
   return (
     <div className="app">
       <ToastHost />
-      <div key={route}>{screen}</div>
+      <ErrorBoundary resetKey={route}>
+        <div key={route}>{screen}</div>
+      </ErrorBoundary>
       <BottomNav route={route} />
     </div>
   );

@@ -1,15 +1,24 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Drift, JournalEntry, Recalled } from "./api";
 import { pct, usd } from "./format";
 import { haptic, openLink } from "./telegram";
 
 // ---------- routing (hash based, works inside Telegram) ----------
 
+/**
+ * Telegram opens the app with its launch params in the hash ("#tgWebAppData=…", or "#/positions&tgWebAppData=…"
+ * from a bot button), so only the part up to the first ?, & or # is our route.
+ */
+export function routeFromHash(hash: string): string {
+  const route = hash.replace(/^#/, "").split(/[?&#]/)[0] ?? "";
+  return route.startsWith("/") ? route : "/";
+}
+
 export function useRoute(): string {
-  const [route, setRoute] = useState(() => window.location.hash.slice(1) || "/");
+  const [route, setRoute] = useState(() => routeFromHash(window.location.hash));
   useEffect(() => {
     const on = () => {
-      setRoute(window.location.hash.slice(1) || "/");
+      setRoute(routeFromHash(window.location.hash));
       window.scrollTo({ top: 0 });
     };
     window.addEventListener("hashchange", on);
@@ -18,10 +27,55 @@ export function useRoute(): string {
   return route;
 }
 
+/** Screens opened with go() since the app started, i.e. how far back history.back() can go and stay in the app. */
+let depth = 0;
+
 export const go = (path: string) => {
   haptic.tap();
+  if (routeFromHash(window.location.hash) === path) return;
+  depth++;
   window.location.hash = path;
 };
+
+const parentRoute = (route: string) => (route.startsWith("/position/") ? "/positions" : "/");
+
+/**
+ * Back to the previous screen, never out of the app: when it was opened straight on a nested screen there is
+ * no previous screen, and history.back() would leave a blank page inside Telegram.
+ */
+export const goBack = () => {
+  haptic.tap();
+  if (depth > 0) {
+    depth--;
+    history.back();
+  } else {
+    window.location.replace(`#${parentRoute(routeFromHash(window.location.hash))}`);
+  }
+};
+
+/** A crash in one screen shows a way home instead of a blank Mini App. */
+export class ErrorBoundary extends Component<{ resetKey: string; children: ReactNode }, { error?: Error }> {
+  state: { error?: Error } = {};
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error) {
+    console.error("[ui] screen crashed:", error);
+  }
+  componentDidUpdate(prev: { resetKey: string }) {
+    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: undefined });
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="card" style={{ marginTop: 40 }}>
+        <div className="card-title">Something went wrong on this screen</div>
+        <p className="small" style={{ color: "var(--on-navy-soft)" }}>{this.state.error.message}</p>
+        <button className="btn primary" onClick={() => go("/")}>Back to home</button>
+      </div>
+    );
+  }
+}
 
 // ---------- data loading ----------
 
@@ -175,7 +229,7 @@ export function TopBar({ title, back }: { title?: string; back?: string }) {
   return (
     <div className="topbar">
       {back !== undefined ? (
-        <button className="back-btn" onClick={() => (back ? go(back) : history.back())}>
+        <button className="back-btn" onClick={() => (back ? go(back) : goBack())}>
           <Icon.back /> {title}
         </button>
       ) : (
