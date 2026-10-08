@@ -9,6 +9,18 @@ were calm, and what happened the last time you broke your own rules.
 
 Built for **Walrus Session 8: Chatbots That Remember**.
 
+**Try it:** [@MyThesisapp_bot](https://t.me/MyThesisapp_bot) ·
+**Article:** [Medium](https://medium.com/@stkalper/thesis-keeper-a-trading-journal-that-remembers-why-you-entered-becd42aa1c50) ·
+**Demo video:** [YouTube](https://www.youtube.com/watch?v=tFjS1HMoPmc) ·
+**Submission:** [DeepSurge](https://www.deepsurge.xyz/projects/f150fc55-3f9c-43c9-ac87-867fc9fd10be)
+
+<p>
+  <img src="docs/screenshots/home.png" width="200" alt="Home screen with an open position" />
+  <img src="docs/screenshots/before-after.png" width="200" alt="Before a thesis exists, the coach has nothing to hold you to" />
+  <img src="docs/screenshots/coach-recall.png" width="200" alt="The coach answers from memory, quoting the thesis" />
+  <img src="docs/screenshots/memories.png" width="200" alt="Thesis and check-in memories stored on Walrus" />
+</p>
+
 ---
 
 ## Why Walrus Memory is load-bearing here
@@ -88,6 +100,8 @@ flowchart LR
 - The JSON store only holds structured state needed to render the UI (positions, journal index, blob IDs).
   The *meaning* — theses, emotions, outcomes, lessons — lives in Walrus Memory.
 - Mini App requests are authenticated by validating Telegram `initData` (HMAC-SHA256 with the bot token).
+- LLM: `qwen/qwen3.8-27b`, an open-weight model served by Groq. No OpenAI or Anthropic model is used; any
+  OpenAI-compatible endpoint works via `LLM_BASE_URL` / `LLM_MODEL`.
 
 Key files: [`server/src/memory.ts`](server/src/memory.ts) (Walrus Memory wrapper),
 [`server/src/journal.ts`](server/src/journal.ts) (what gets remembered and when),
@@ -113,6 +127,7 @@ npm start
 | `PUBLIC_URL` | Your public HTTPS URL (deploy, or a tunnel such as `cloudflared tunnel --url http://localhost:3000`) |
 | `MEMWAL_PRIVATE_KEY`, `MEMWAL_ACCOUNT_ID` | [memory.walrus.xyz](https://memory.walrus.xyz) — create an account and a delegate key |
 | `LLM_API_KEY` | e.g. [Groq](https://console.groq.com/keys) (free tier, open models). Any OpenAI-compatible endpoint works via `LLM_BASE_URL` / `LLM_MODEL`. |
+| `USER_KEY_SECRET` | Only for "bring your own memory": a random 32-byte hex secret that encrypts users' delegate keys (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). |
 
 Without Walrus credentials the app runs in **local memory mode** (clearly labelled in the UI) so you can develop offline.
 
@@ -138,11 +153,22 @@ npm run typecheck
 `PUBLIC_URL` to the service URL. A 1 GB disk keeps the JSON store across deploys. The bot sets its menu
 button to the Mini App automatically on start.
 
+### Deploy (any Linux box)
+
+The live bot runs on a small VPS behind Caddy as a systemd user service:
+
+```bash
+npm ci && npm run build
+node --env-file=.env server/dist/index.js   # set HOST=127.0.0.1 behind a reverse proxy
+```
+
 ---
 
 ## Usage proof
 
 `GET /api/stats` returns aggregate counts (users, memories, memories stored on Walrus) without any personal data.
+Live: [thesis.188-245-26-190.sslip.io/api/stats](https://thesis.188-245-26-190.sslip.io/api/stats). On
+2026-10-08 it reported 5 users and 59 memories, all 59 stored on Walrus (19, 16, 14 and 10 per active user).
 
 ## Not financial advice
 
