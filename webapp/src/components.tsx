@@ -219,7 +219,7 @@ export const Icon = {
 export function Brand() {
   return (
     <div className="brand">
-      <span className="brand-mark"><i /><i /><i /></span>
+      <img className="brand-mark" src="/brand.png" alt="" />
       Thesis Keeper
     </div>
   );
