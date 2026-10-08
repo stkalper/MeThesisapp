@@ -56,7 +56,7 @@ a { color: inherit; }
 /* ---------- header ---------- */
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
-.brand-mark { width: 44px; height: 44px; border-radius: 12px; display: block; }
+.brand-mark { width: 44px; height: 44px; display: block; }
 .icon-btn {
   width: 44px; height: 44px; border-radius: 50%;
   display: grid; place-items: center;
