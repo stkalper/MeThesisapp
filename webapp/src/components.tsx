@@ -2,6 +2,7 @@ import { Component, useCallback, useEffect, useRef, useState, type ReactNode } f
 import type { Drift, JournalEntry, Recalled } from "./api";
 import { pct, usd } from "./format";
 import { haptic, openLink } from "./telegram";
+import brandUrl from "./brand.png";
 
 // ---------- routing (hash based, works inside Telegram) ----------
 
@@ -219,7 +220,7 @@ export const Icon = {
 export function Brand() {
   return (
     <div className="brand">
-      <img className="brand-mark" src="/brand.png" alt="" />
+      <img className="brand-mark" src={brandUrl} alt="" />
       Thesis Keeper
     </div>
   );
